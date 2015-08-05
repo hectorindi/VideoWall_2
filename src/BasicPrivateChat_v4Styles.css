@@ -1,0 +1,44 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+
+global
+{
+	content-background-color: #ffffff;
+	color: #0A0808;
+}
+
+mx|Alert {
+	
+	button-style-name: alertButton;
+}
+
+.alertButton {
+	skin: ClassReference("skins.CustomButtonSkin");
+	skin-class: ClassReference("skins.CustomButtonSkin");
+	emphasized-skin: ClassReference("skins.CustomButtonSkin");
+}
+
+s|TextInput{
+	color: #000000;
+}
+
+s|ComboBox{
+	color : #000000;
+}
+
+
+s|Panel{
+	skinClass:ClassReference("skins.NewCustomPanelSkin");
+	color: #FFFFFF;
+}
+
+s|Button{
+	color: #000000;
+	skinClass:ClassReference("skins.CustomButtonSkin");
+}
+
+s|Label.isTypingTextStyle
+{
+	color: #B4B4B4;
+}

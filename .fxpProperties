@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<fxpProperties abbreviated="false" authoringTool="Flex Builder" compiles="true" parentProject="a27e87e4-5091-4584-8b7a-d098c19448cb" projectUUID="a27e87e4-5091-4584-8b7a-d098c19448cb" pureCatalystProject="false" sdkVersion="4.6.0" uuid="8a634adf-7c8f-475d-81d3-fcd915f260e0" version="15">
+  <projects/>
+  <src/>
+  <swc>
+    <linked location="C:/Users/Piyush/Documents/ABS-CBN/Workspace1/ABS-CBN-VideoWall/libs" path="/libs" position="0" uuid="8a634adf-7c8f-475d-81d3-fcd915f260e0"/>
+    <linked location="sdkPlaceHolder" path="sdkPlaceHolder" position="1" uuid="8a634adf-7c8f-475d-81d3-fcd915f260e0"/>
+  </swc>
+  <misc/>
+  <theme/>
+  <mxmlFormattingPrefs groupAttributesByState="true" maxLineWidth="100" mxmlAlignAttributes="true" mxmlAttributeOrder="id,userLabel,includeIn,excludeFrom,visible,x,y,z,left,right,top,bottom,width,height,minWidth,minHeight,maxWidth,maxHeight,label" mxmlKeepAttributeValuesOrganized="true"/>
+</fxpProperties>

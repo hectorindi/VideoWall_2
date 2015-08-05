@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="400" height="200">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Metadata>
+		[Event(name="login", type="events.LoginEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.encast.AppManager;
+			
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			import events.LoginEvent;
+			
+			//keep the state so the user can't try to login more than once at a time
+			private var _loggingIn:Boolean = false;
+			
+			private function login():void{
+				if(_loggingIn == false){
+					_loggingIn = true;
+					setStatusText("Logging in, please wait...");
+					var eventObj:LoginEvent = new LoginEvent("login");
+					eventObj.userName = "host";
+					eventObj.showID = showID.text;
+					eventObj.roleSelected=role.selectedItem.value;
+					AppManager.getInstance().showID = parseInt(showID.text);
+					dispatchEvent(eventObj);
+				}else{
+					Alert.show("Trying to log in right now, hang on a sec");
+				}
+			}
+			
+			protected function userNameTextInput_enterHandler(event:FlexEvent):void{
+				if(role.selectedIndex != -1)
+				{
+					login();
+				}
+				else
+				{
+					Alert.show("You must enter in a proper user name to login");
+				}
+			}
+			
+			protected function loginButton_clickHandler(event:MouseEvent):void{
+				if(role.selectedIndex != -1)
+				{
+					login();
+				}
+				else
+				{
+					Alert.show("You must enter in a proper user name to login");
+				}
+			}
+			
+			public function resetStatus():void{
+				stateText.text = "";
+				_loggingIn = false;
+			}
+			
+			public function setStatusText(status:String):void{
+				stateText.text = status;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Panel x="0" y="0" width="400" height="200" title="Login to the Virtual Audience!">
+		<s:layout>
+			<s:HorizontalLayout horizontalAlign="center" verticalAlign="middle"/>
+		</s:layout>
+		<s:VGroup horizontalAlign="center" verticalAlign="middle">
+			<s:ComboBox id="role" width="146" selectedIndex="0"
+						>
+				<s:dataProvider>
+					<s:ArrayCollection>
+						<fx:Object value="HOST" label="HOST"/>
+					</s:ArrayCollection>
+				</s:dataProvider>
+			</s:ComboBox>
+			<s:TextInput id="showID" width="146" displayAsPassword="true"
+						 prompt="Show ID" skinClass="skins.CustomTextInputSkin" enter="userNameTextInput_enterHandler(event)"/>
+			<s:Button id="loginButton" bottom="50" label="Login" click="loginButton_clickHandler(event)"
+					  horizontalCenter="0"/>
+			<s:Label id="stateText" width="350"/>
+		</s:VGroup>
+	</s:Panel>
+	
+</s:Group>

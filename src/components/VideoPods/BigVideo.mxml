@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="490" height="400"
+		 xmlns:components="components.*" 
+		 xmlns:VideoPods="components.VideoPods.*"
+		 close="titlewindow1_closeHandler(event)">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	
+	<fx:Metadata>
+		[Event(name="streamStop", type="com.encast.WowzaCustomEvent")]
+	</fx:Metadata>
+	
+	<fx:Script>
+		<![CDATA[
+			import com.encast.AppManager;
+			import com.encast.NetConnectionManager;
+			import com.encast.WowzaCustomEvent;
+			
+			import flash.media.Video;
+			
+			import mx.events.CloseEvent;
+			
+			
+			private var _vid:Video;
+			private var _nc:NetConnectionManager;
+			private var _ns:NetStream;
+			
+			private var _playingUserName:String = "";
+			private var _playingUserId:String = "";
+			private var _playingUserEmail:String = "";
+			
+			private var _playingVideo:Boolean = false;
+			
+			private var _showId:String;
+			private var _showPos:Number;
+			
+			public function initializeVideoPod(nc:NetConnectionManager):void{
+				_nc = nc;
+				_nc.addEventListener(NetStatusEvent.NET_STATUS , onNetStatusNC);
+				_vid = new Video(480, 360);
+				this.addEventListener(Event.ADDED_TO_STAGE,onAdedToStage);
+				videoPod.addChild(_vid);
+			}
+			
+			private function onAdedToStage():void
+			{
+				this.x = (this.stage.stageWidth / 2) - (this.width / 2);
+				this.y = (this.stage.stageHeight / 2) - (this.height / 2);
+			}
+			
+			private function onNetStatusNC(e:NetStatusEvent):void{
+				
+			}
+			
+			private function onNetStreamStatus(e:NetStatusEvent):void
+			{	
+				var dis:String = e.info.description;
+				var c:String = e.info.code; 
+				
+				if(e.info.code == "NetStream.Play.Start")
+				{
+					var arr:Array = dis.split("_");
+					var str:String = arr[1];
+					
+					if(arr[1] == _playingUserId)
+					{
+						//playVideo(__playingUserId);
+					}
+				}
+				else if(c == "NetStream.Play.PublishNotify")
+				{
+					var arr3:Array = dis.split("_");
+					var str3:String = arr3[1];
+					var arr2:Array = str3.split(" ");
+					if(arr2[0] == _playingUserId)
+					{
+						playStream(_playingUserId,_playingUserName,_showPos);
+					}
+				}
+				else if(c == "NetStream.Unpublish.Success")
+				{
+					
+				}
+				else if(_playingVideo == true && c == "NetStream.Play.UnpublishNotify")
+				{
+					dispatchEvent(new Event(Event.CLOSE,true,true));
+					stopVideo(_playingUserName);
+				}
+				else if(c == "NetStream.Play.StreamNotFound")
+				{
+					AppManager.getInstance().log("Not found");
+				}
+			}
+			
+			
+			public function playStream(userID:String,userName:String,pos:Number):void
+			{
+				if(pos == _showPos)
+				{
+					playVideo(userID,userName,_nc);
+				}
+			}
+			
+			public function playVideo(userID:String, userName:String,_nc:NetConnectionManager):void{
+				
+				
+				_ns = new NetStream(_nc);
+				
+				_ns.receiveAudio(true);
+				//videoPodAudioControl.currentState = "Muted";
+				
+				_ns.client = this;
+				this.id
+				_ns.addEventListener(NetStatusEvent.NET_STATUS, onNetStreamStatus);
+				_playingVideo = true;
+				
+				_vid.attachNetStream(_ns);
+				_ns.play("user_" + userID, -1, -1);
+				
+				AppManager.getInstance().log("playing user in reciving Pod : user_"+userID);
+				
+				title = userName;
+				_vid.visible = true;
+				_playingUserName = userName;
+				_playingUserId = userID;
+				videoPod.visible = true;
+				videoPod.includeInLayout = true;
+				
+				
+				/*this.x = (this.stage.stageWidth / 2) - (this.width / 2);
+				this.y = (this.stage.stageHeight / 2) - (this.height / 2);*/
+			}
+			
+			public function stopVideo(user:String):void{
+				//AppManager.getInstance().log("stopVideo called username : "+AppManager.getInstance().userName+ " id video is : "+this.id);
+				if(_playingUserName == user)
+				{
+					_playingVideo = false;
+					if(_ns)
+					{
+						_ns.close();
+					}
+					if(_vid)
+					{
+						_vid.attachNetStream(null);
+						_vid.clear();
+						_vid.visible = false;
+					}
+					title = "";
+					//AppManager.getInstance().log("stopVideo for username : "+AppManager.getInstance().userName+ " and id : "+this.id+" asked to stop : "+user);
+					
+				}
+			}	
+			
+			public function muteAudio():void{
+				if(_ns != null){
+					_ns.receiveAudio(false);
+				}
+			}
+			
+			public function unMuteAudio():void{
+				if(_ns != null)
+				{
+					_ns.receiveAudio(true);
+				}
+			}
+			
+			
+			public function get showId():String
+			{
+				return _showId;
+			}
+			
+			public function set showId(value:String):void
+			{
+				if(value != null)
+				{
+					_showId = value
+				}
+			}
+			
+			
+			public function get playingUserName():String
+			{
+				return _playingUserName;
+			}
+			
+			public function destroy():void
+			{
+				stopVideo(_playingUserName);
+				_nc = null;
+				_ns = null;
+				_playingUserName = "";
+				_playingUserId = "";
+				_playingUserEmail = "";
+				
+				_playingVideo = false;
+				
+				_showId = "";
+				_showPos = 0;
+			}
+			
+			protected function userOption_clickHandler(event:MouseEvent):void
+			{
+				var eveObj:Object = new Object();
+				eveObj.publishingUserID = _playingUserId;
+				eveObj.showId = showId;
+				eveObj.publishingUserEmail = _playingUserEmail;
+				eveObj.showId = showId;
+				var eve:Event = new WowzaCustomEvent("openModWindow",true,true,eveObj);
+				dispatchEvent(eve);
+			}
+			
+			public function set pos(value:Number):void
+			{
+				_showPos = value;
+			}
+			
+			public function get pos():Number
+			{
+				return _showPos;
+			}
+			
+			protected function videopodaudiocontrol_onMuteHandler(event:Event):void{
+				//make sure there is a net stream to call it on to
+				if(_playingVideo == true){
+					_ns.receiveAudio(false);
+					//videoPodAudioControl.currentState = "Muted";
+				}
+			}
+			
+			protected function videopodaudiocontrol_onUnmuteHandler(event:Event):void{
+				if(_playingVideo == true){
+					_ns.receiveAudio(true);
+					//videoPodAudioControl.currentState = "Unmuted";
+				}
+			}
+			
+			protected function titlewindow1_closeHandler(event:CloseEvent):void
+			{
+				muteAudio();
+				var temp:Object = new Object();
+				temp.name = _playingUserName;
+				var eve:WowzaCustomEvent = new WowzaCustomEvent("muteUser",true,true,temp);
+				dispatchEvent(eve);
+				destroy();
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:SkinnableContainer id="videoPodPanel" width="100%" height="100%" skinClass="skins.VideoPodSkin">
+		<s:HGroup horizontalAlign="center" verticalAlign="middle" width="100%" height="100%" paddingLeft="5" paddingRight="5" paddingTop="5" paddingBottom="5">
+			<mx:UIComponent id="videoPod" width="100%" height="100%">
+				
+			</mx:UIComponent>
+		</s:HGroup>
+	</s:SkinnableContainer>
+</s:TitleWindow>

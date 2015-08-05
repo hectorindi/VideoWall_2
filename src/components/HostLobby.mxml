@@ -1,0 +1,871 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" 
+		 width="100%" height="100%"
+		 xmlns:components="components.*" 
+		 xmlns:flexpaper="com.devaldi.controls.flexpaper.*" xmlns:VideoPods="components.VideoPods.*"
+		 >
+	
+	<fx:Metadata>
+		[Event(name="logout", type="flash.events.Event")]
+	</fx:Metadata>	
+	<fx:Script>
+		
+		<![CDATA[
+			import com.encast.AppManager;
+			import com.encast.NetConnectionManager;
+			import com.encast.UserRole;
+			import com.encast.WowzaCustomEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.managers.PopUpManager;
+			import mx.managers.PopUpManagerChildList;
+			
+			import components.VideoPods.BigVideo;
+			
+			
+			private var _nc:NetConnectionManager;
+			private var _userID:Number;
+			
+			[Bindable]
+			private var _userName:String;
+	
+		
+			private var _userRole:int;
+			private var _windowBig:BigVideo;
+			private var _so:SharedObject;
+			private var _soUsers:SharedObject;
+			private var _userList:ArrayCollection;
+			private var _muteAll:Boolean = true;
+			
+			
+			public function initializeLobby(nc:NetConnectionManager, chatHistory:Array,queryHistory:Array,userRole:int):void{
+				_userList = new ArrayCollection();
+				_nc = nc;
+				_so = SharedObject.getRemote("userVideos", nc.uri, false);
+				_so.addEventListener(SyncEvent.SYNC, onSync);
+				_so.client = this;
+				_so.connect(_nc);
+				_userRole = userRole;
+				_nc = nc;
+				_userID = AppManager.getInstance().userID;
+				_userName = AppManager.getInstance().userName;
+				
+				_soUsers = SharedObject.getRemote("users", _nc.uri, false);
+				_soUsers.addEventListener(SyncEvent.SYNC, onSync);
+				_soUsers.client = this;
+				_soUsers.connect(_nc);
+				
+				AppManager.getInstance().log(" nc "+_nc+" userID "+_userID+" name "+ _userName);				
+				
+				if(_userRole == UserRole.MODERATOR1)
+				{
+					
+					
+				}
+				else if(_userRole == UserRole.MODERATOR2)
+				{
+					
+				}
+				else if(_userRole == UserRole.HOST)
+				{
+					
+				}
+				mainContainerVideoPods_creationCompleteHandler();
+				stage.displayState = StageDisplayState.FULL_SCREEN_INTERACTIVE;
+			}	
+			
+			public function onMuteUser(e:WowzaCustomEvent):void
+			{
+				var user:String = e.eventObj.name as String;
+				if(user != "")
+				{
+					for(var i:int=1 ;i<7; i++)
+					{
+						var podToActivate:String;
+						var containerName:String = "videoPodContainer"+i.toString();
+						
+						for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+						{
+							var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+							if(vidBox.id == containerName)
+							{
+								for(var j:int=0;j<vidBox.numChildren;j++)
+								{
+									var infoBox:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+									if(infoBox != null)
+									{
+										if(user == infoBox.playingUserName)
+										{
+											infoBox.muteAudio();
+											//AppManager.getInstance().log("audio stopped for : "+infoBox.playingUserName)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			public function addUser(userInfo:Object,showUserArray:Array):void
+			{
+				
+			}
+			
+			
+			public function removeUser(userID:Number,showUserArray:Array):void
+			{
+				Alert.show("user removed");
+			}
+			
+			public function onEnlageVid(obj:Object):void
+			{
+				if(obj.hasOwnProperty("id") && obj.hasOwnProperty("name"))
+				{
+					AppManager.getInstance().log("enlarging vid for user : "+obj.name+" and user id is : "+obj.id);
+					if(_windowBig != null && obj.name == "close")
+					{
+						_windowBig.muteAudio();
+						PopUpManager.removePopUp(_windowBig);
+						_windowBig.destroy();
+						_windowBig = null;
+					}
+					else
+					{
+						muteAll();
+						if(obj.name != "close")
+						{
+							if(_windowBig)
+							{
+								PopUpManager.removePopUp(_windowBig);
+								_windowBig.muteAudio();
+								_windowBig.destroy();
+								_windowBig = null;
+							}
+							_windowBig = new BigVideo();
+							_windowBig.addEventListener(Event.ADDED_TO_STAGE, onAddedToStage);
+							_windowBig.addEventListener(Event.CLOSE, onBigVidClose);
+							_windowBig.addEventListener("muteUser", onMuteUser);
+							PopUpManager.addPopUp(_windowBig, FlexGlobals.topLevelApplication as DisplayObject, true,PopUpManagerChildList.POPUP);
+							
+							//PopUpManager.centerPopUp(_windowBig);
+							/*PopUpManager.centerPopUp(_windowBig);
+							
+							
+							PopUpManager.centerPopUp(_windowBig);
+							PopUpManager.centerPopUp(_windowBig);
+							PopUpManager.centerPopUp(_windowBig);*/
+							
+							_windowBig.initializeVideoPod(_nc);
+							_windowBig.playVideo(obj.id,obj.name,_nc);
+						}
+						else
+						{
+							PopUpManager.removePopUp(_windowBig);
+							_windowBig.muteAudio();
+							_windowBig.destroy();
+							_windowBig = null;	
+						}
+					}
+					centerPopupS();
+				}
+			}
+			
+			public function muteAll():void
+			{
+				for(var i:int=1 ;i<7; i++)
+				{
+					var podToActivate:String;
+					var containerName:String = "videoPodContainer"+i.toString();
+					
+					for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+					{
+						var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+						if(vidBox.id == containerName)
+						{
+							for(var j:int=0;j<vidBox.numChildren;j++)
+							{
+								var infoBox:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+								if(infoBox != null)
+								{
+									if(infoBox.playingUserName != "")
+									{
+										infoBox.muteAudio();
+										//AppManager.getInstance().log("audio stopped for : "+infoBox.playingUserName)
+									}
+								}
+							}
+						}
+					}
+				}
+				_muteAll = true;
+			}
+			
+			private function onAddedToStage(e:Event):void
+			{
+				//centerPopupS();
+			}
+			
+			public function centerPopupS():void
+			{
+				if(_windowBig)
+				{
+					PopUpManager.centerPopUp(_windowBig);
+					if(this.stage.stageWidth == 0)
+					{
+						_windowBig.x = (this.stage.stageWidth / 2) - (_windowBig.width / 2);
+						_windowBig.y = (this.stage.stageHeight / 2) - (_windowBig.height / 2);
+					}
+				}
+			}
+			
+			public function onBigVidClose(e:Event):void
+			{
+				if(_windowBig != null)
+				{
+					PopUpManager.removePopUp(_windowBig);
+					_windowBig.destroy();
+					_windowBig.muteAudio();
+					_windowBig = null;
+				}
+			}
+			
+			public function onEnableAudio(obj:Object):void
+			{
+				
+				var showarray:Array = AppManager.getInstance().ShowUserArray;
+				
+				var podTopushIn :String = "video"
+				
+				for(var l:int=0 ;l<showarray.length; l++)
+				{
+					if(showarray[l] == obj.id)
+					{
+						l = l+1
+						podTopushIn = podTopushIn+l.toString();
+					}
+				}
+				
+				if(showarray.length == 0)
+				{
+					podTopushIn = "video1";	
+				}
+				
+				if(obj.hasOwnProperty("id") && obj.hasOwnProperty("name"))
+				{
+					AppManager.getInstance().log("Enable/disable audio for user : "+obj.name+" and user id is : "+obj.id)
+					for(var i:int=1 ;i<7; i++)
+					{
+						var containerName:String = "videoPodContainer"+i.toString();
+						
+						for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+						{
+							var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+							if(vidBox.id == containerName)
+							{
+								for(var j:int=0;j<vidBox.numChildren;j++)
+								{
+									var pod:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+									if(pod != null)
+									{
+										trace("obj.status : 3"+obj.status);
+										if(pod.id == podTopushIn)
+										{
+											trace("obj.status 4: "+obj.status);
+											if(obj.status == "ON")
+											{
+												trace("obj.status 2: "+obj.status);
+												pod.unMuteAudio();
+												_muteAll = false;
+												//break;
+											}	
+											else
+											{
+												trace("obj.status : "+obj.status);
+												pod.muteAudio();
+												//break;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			//need this in to handle the error that will happen, this function does nothing.
+			public function sendMessage(msg:String, clr:String, uID:Number, pC:Boolean):void{
+				
+			}
+	
+			protected function logoutButton_clickHandler(event:MouseEvent):void{
+				var eventObj:Event = new Event("logout");
+				dispatchEvent(eventObj);
+			}	
+			
+			public function close():void{
+				
+			}
+			
+			
+			private function onSync(e:SyncEvent):void{
+				for(var i:Object in _so.data)
+				{
+					//put all the users in the list
+					var userInfo:Object = _so.data[i] as Object;
+					_userList.addItem(userInfo);
+				}
+				createNew();
+				_so.removeEventListener(SyncEvent.SYNC,onSync);
+			}
+		
+			
+			public function get userRole():int
+			{
+				return _userRole;
+			}
+			
+			public function reMoveUserFromShowMOD2(obj:Object):void
+			{
+				var showarray:Array = AppManager.getInstance().ShowUserArray;
+				if(obj != null)
+				{
+					var array:Array = obj.array;
+					var userOb:Object = obj.user;
+					
+					for (var l:int = 0 ; l < showarray.length;l++)
+					{
+						if(obj.user.userId == showarray[l])
+						{
+							AppManager.getInstance().log("Changed "+ showarray[l]+ " to : "+ obj.prevModName+" and username is : "+AppManager.getInstance().userName);
+							var podToPOP :String = "video"+(l+1).toString();
+							break;
+						}
+					}
+					
+					//AppManager.getInstance().ShowUserArray = null;
+					
+					//AppManager.getInstance().ShowUserArray = obj.array;
+					 
+					for(var i:int=1 ;i<7; i++)
+					{
+						var containerName:String = "videoPodContainer"+i.toString();
+						
+						for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+						{
+							var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+							if(vidBox.id == containerName)
+							{
+								for(var j:int=0;j<vidBox.numChildren;j++)
+								{
+									var pod:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+									if(pod != null)
+									{
+										if(pod.id == podToPOP)
+										{
+											var pos:Number = showarray.length;
+											pod.pos = 0;
+											pod.stopVideo(userOb.userName);
+											pod.destroy();
+											pod.includeInLayout = false;
+											pod.visible = false;
+											//infoBox.addUserToShow(_nc);
+										}
+									}
+								}
+							}
+						}
+						var showArray:Array = AppManager.getInstance().ShowUserArray;
+						
+						var actualUsers:int = 0;
+						
+						for(var conts:int=0;conts<showArray.length;conts++)
+						{
+							if(showArray[conts] != "default")
+							{
+								actualUsers = actualUsers+1;
+							}
+						}
+						
+						AppManager.getInstance().showArrPos = actualUsers;
+					}
+					checkContainers();
+				}
+				
+				AppManager.getInstance().ShowUserArray = null;
+				
+				AppManager.getInstance().ShowUserArray = obj.array;
+				checkUsers();
+				if(_windowBig != null)
+				{
+					if(_windowBig.playingUserName == userOb.userName)
+					{
+						_windowBig.muteAudio();
+						PopUpManager.removePopUp(_windowBig);
+						_windowBig.destroy();
+						_windowBig = null;
+					}
+				}
+			}
+			
+			private function checkUsers():void
+			{
+				for(var i:int=1 ;i<7; i++)
+				{
+					var containerName:String = "videoPodContainer"+i.toString();
+					
+					for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+					{
+						var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+						if(vidBox.id == containerName)
+						{
+							for(var j:int=0;j<vidBox.numChildren;j++)
+							{
+								var pod:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+								if(pod != null)
+								{
+									var boo:Boolean = false;
+									var show:Array = AppManager.getInstance().ShowUserArray;
+									for(var m:int=0;m<show.length;m++)
+									{
+										if(pod.playingUserId == show[m])
+										{
+											boo = true;
+											break;
+										}
+									}
+									if(boo == false)
+									{
+										pod.pos = 0;
+										//pod.stopVideo(userOb.userName);
+										pod.destroy();
+										pod.includeInLayout = false;
+										pod.visible = false;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			private function checkContainers():void
+			{
+				var isVisible:Boolean = false;
+				for( var count:int = 0;count<videoPodContainer1.numChildren;count++)
+				{
+					var pods:RecivingPod = videoPodContainer1.getElementAt(count) as RecivingPod;
+					if(pods != null)
+					{
+						if(pods.visible == true)
+						{
+							isVisible = true;
+						}
+					}
+				}
+				
+				if(isVisible ==  false)
+				{
+					videoPodContainer1.visible =false;
+					videoPodContainer1.includeInLayout = false;
+				}
+				else
+				{
+					videoPodContainer1.visible =true;
+					videoPodContainer1.includeInLayout = true;
+				}
+				
+				pods = null;
+				isVisible = false;
+				
+				for(count = 0;count<videoPodContainer2.numChildren;count++)
+				{
+					pods = videoPodContainer2.getElementAt(count) as RecivingPod;
+					if(pods != null)
+					{
+						if(pods.visible == true)
+						{
+							isVisible = true;
+						}
+					}
+				}
+				
+				if(isVisible ==  false)
+				{
+					videoPodContainer2.visible =false;
+					videoPodContainer2.includeInLayout = false;
+				}
+				else
+				{
+					videoPodContainer2.visible =true;
+					videoPodContainer2.includeInLayout = true;
+				}
+				
+				pods = null;
+				isVisible = false;
+				
+				for( count = 0;count<videoPodContainer3.numChildren;count++)
+				{
+					pods = videoPodContainer3.getElementAt(count) as RecivingPod;
+					if(pods != null)
+					{
+						if(pods.visible == true)
+						{
+							isVisible = true;
+						}
+					}
+				}
+				
+				if(isVisible ==  false)
+				{
+					videoPodContainer3.visible =false;
+					videoPodContainer3.includeInLayout = false;
+				}
+				else
+				{
+					videoPodContainer3.visible =true;
+					videoPodContainer3.includeInLayout = true;
+				}
+				
+				pods = null;
+				isVisible = false;
+				
+				for(count = 0;count<videoPodContainer4.numChildren;count++)
+				{
+					pods = videoPodContainer4.getElementAt(count) as RecivingPod;
+					if(pods != null)
+					{
+						if(pods.visible == true)
+						{
+							isVisible = true;
+						}
+					}
+				}
+				
+				if(isVisible ==  false)
+				{
+					videoPodContainer4.visible =false;
+					videoPodContainer4.includeInLayout = false;
+				}
+				else
+				{
+					videoPodContainer4.visible =true;
+					videoPodContainer4.includeInLayout = true;
+				}
+				
+				pods = null;
+				isVisible = false;
+			}
+			
+			
+			
+			public function addUserToShowMod2(obj:Object):void
+			{
+				var showarray:Array = AppManager.getInstance().ShowUserArray;
+				if(obj != null)
+				{
+					var array:Array = obj.array;
+					var userOb:Object = obj.user;
+					
+					var podTopushIn :String = "video"
+					
+					for(var l:int=0 ;l<showarray.length; l++)
+					{
+						if(showarray[l] == obj.user.userId)
+						{
+							l = l+1
+							podTopushIn = podTopushIn+l.toString();
+						}
+					}
+					
+					if(showarray.length == 0)
+					{
+						podTopushIn = "video1";	
+					}
+					
+					for(var i:int=1 ;i<7; i++)
+					{
+						var containerName:String = "videoPodContainer"+i.toString();
+						
+						for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+						{
+							var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+							if(vidBox.id == containerName)
+							{
+								for(var j:int=0;j<vidBox.numChildren;j++)
+								{
+									var pod:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+									if(pod != null)
+									{
+										if(pod.id == podTopushIn)
+										{
+											var showArray:Array = AppManager.getInstance().ShowUserArray;
+											
+											var actualUsers:int = 0;
+											
+											for(var conts:int=0;conts<showArray.length;conts++)
+											{
+												if(showArray[conts] != "default")
+												{
+													actualUsers = actualUsers+1;
+												}
+											}
+											
+											AppManager.getInstance().showArrPos = actualUsers;
+											
+											var pos:Number = actualUsers;
+											
+											if(actualUsers <= 6)
+											{
+												pod.destroy();
+												videoPodContainer1.includeInLayout = true;
+												pod.visible = true;
+												pod.includeInLayout = true;
+												pod.initializeVideoPod(_nc);
+												pod.pos = pos;
+												pod.playVideo(userOb.userId,userOb.userName,_nc);
+											}
+											else if(actualUsers >= 7 && actualUsers < 13)
+											{
+												pod.destroy();
+												videoPodContainer2.includeInLayout = true;
+												pod.visible = true;
+												pod.includeInLayout = true;
+												//videoPodContainer2.addElement(pod);
+												pod.initializeVideoPod(_nc);
+												//pod.id = podTopushIn;
+												pod.pos = pos;
+												pod.playVideo(userOb.userId,userOb.userName,_nc);
+											} else if(actualUsers >= 13 && actualUsers < 19)
+											{
+												pod.destroy();
+												videoPodContainer3.includeInLayout = true;
+												pod.visible = true;
+												pod.includeInLayout = true;
+												//videoPodContainer3.addElement(pod);
+												pod.initializeVideoPod(_nc);
+												//pod.id = podTopushIn;
+												pod.pos = pos;
+												pod.playVideo(userOb.userId,userOb.userName,_nc);
+											} else if(actualUsers >= 19 && actualUsers <= 25)
+											{
+												pod.destroy();
+												videoPodContainer4.includeInLayout = true;
+												pod.visible = true;
+												pod.includeInLayout = true;
+												//videoPodContainer3.addElement(pod);
+												pod.initializeVideoPod(_nc);
+												//pod.id = podTopushIn;
+												pod.pos = pos;
+												pod.playVideo(userOb.userId,userOb.userName,_nc);
+											}	
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+				checkContainers();
+			}
+			
+			
+			protected function mainContainerVideoPods_creationCompleteHandler():void
+			{
+				for(var i:int=1 ;i<7; i++)
+				{
+					var podToActivate:String;
+					var containerName:String = "videoPodContainer"+i.toString();
+					
+					for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+					{
+						var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+						if(vidBox.id == containerName)
+						{
+							for(var j:int=0;j<vidBox.numChildren;j++)
+							{
+								var infoBox:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+								if(infoBox != null)
+								{
+									AppManager.getInstance().log("intialised pod : "+infoBox.id);
+									if(_nc != null)
+									{
+										infoBox.initializeVideoPod(_nc);
+										infoBox.addEventListener("audioStarted", onAudioStated);
+									}
+								}
+							}
+						}
+					}
+				}	
+			}
+			
+			private function onAudioStated(e:WowzaCustomEvent):void
+			{
+				var box:RecivingPod = e.target as RecivingPod;
+				var user:String = e.eventObj.name as String;
+				if(user == box.playingUserName)
+				{
+					for(var i:int=1 ;i<7; i++)
+					{
+						var podToActivate:String;
+						var containerName:String = "videoPodContainer"+i.toString();
+						
+						for(var k:int=0;k<mainContainerVideoPods.numChildren;k++)
+						{
+							var vidBox:Group = mainContainerVideoPods.getChildAt(k) as Group;
+							if(vidBox.id == containerName)
+							{
+								for(var j:int=0;j<vidBox.numChildren;j++)
+								{
+									var infoBox:RecivingPod = vidBox.getChildAt(j) as RecivingPod
+									if(infoBox != null)
+									{
+										if(user != infoBox.playingUserName && infoBox.playingUserName != "")
+										{
+											infoBox.muteAudio();
+											AppManager.getInstance().log("audio stopped for : "+infoBox.playingUserName)
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			protected function image1_clickHandler(event:MouseEvent):void
+			{
+				stage.displayState = StageDisplayState.FULL_SCREEN_INTERACTIVE;
+				//makeBig();
+			}
+			
+			public function makeBig(e:WowzaCustomEvent):void
+			{
+				var windowBig:BigVideo = new BigVideo();
+				//windowBig.playVideo("1","username1",_nc);
+				PopUpManager.addPopUp(windowBig,  FlexGlobals.topLevelApplication as DisplayObject, true,PopUpManagerChildList.POPUP);
+				PopUpManager.centerPopUp(_windowBig);
+				PopUpManager.centerPopUp(_windowBig);
+				PopUpManager.centerPopUp(_windowBig);
+				PopUpManager.centerPopUp(windowBig);
+			}
+			
+			protected function createNew():void
+			{
+				var showArr:Array = AppManager.getInstance().ShowUserArray;
+				
+				for(var count:int = 0; count< showArr.length ; count++)
+				{
+					if(showArr[count] != "default") 
+					{
+						var id:String = showArr[count].toString();
+						var name:String = getUserName(id);
+						var user:Object = new Object();
+						user.userId = id;
+						user.userName = name;
+						var ob:Object = new Object();
+						ob.user = user;
+						ob.array = showArr
+						addUserToShowMod2(ob);
+					}
+				}
+			}
+			
+			private function getUserName(id:String):String
+			{
+				for(var count:int = 0; count< _userList.length ; count++)
+				{
+					var name:String = ""
+					if(id == _userList[count].publishingUserID)
+					{
+						name = _userList[count].publishingUserName;
+						break;
+					}	
+				}
+				return name;
+			}
+			
+			public function getUser(id:String):Object
+			{
+				for(var count:int = 0; count< _userList.length ; count++)
+				{
+					var user:Object;
+					if(id == _userList[count].userid)
+					{
+						user = _userList[count];
+						break;
+					}	
+				}
+				return user;
+			}
+			
+			public function get muteAllVar():Boolean
+			{
+				return _muteAll;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<s:Group id="mainContainer" width="100%" height="100%">
+		<s:BorderContainer width="100%" height="100%" borderWeight="2" backgroundColor="black" cornerRadius="3" dropShadowVisible="true">
+			<s:Group id="mainContainerVideoPods" width="100%" height="100%">
+				<s:layout>
+					<s:VerticalLayout verticalAlign="middle" horizontalAlign="center"/>
+				</s:layout>
+				<s:Group width="100%" height="25%" id="videoPodContainer1" name="videoPodContainer1" includeInLayout="false">
+					<s:layout>
+						<s:HorizontalLayout verticalAlign="middle" horizontalAlign="center"/>
+					</s:layout>
+					<VideoPods:RecivingPod id="video1" name="video1" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video2" name="video2" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video3" name="video3" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video4" name="video4" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video5" name="video5" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video6" name="video7" width="212" height="150" includeInLayout="false" visible="false"/>
+				</s:Group>
+				<s:Group width="100%" height="25%" id="videoPodContainer2" name="videoPodContainer2" includeInLayout="false">
+					<s:layout>
+						<s:HorizontalLayout verticalAlign="middle" horizontalAlign="center"/>
+					</s:layout>
+					<VideoPods:RecivingPod id="video7" name="video7" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video8" name="video8" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video9" name="video9" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video10" name="video10" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video11" name="video11" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video12" name="video12" width="212" height="150" includeInLayout="false" visible="false"/>
+				</s:Group>
+				<s:Group width="100%" height="25%" id="videoPodContainer3" name="videoPodContainer3" includeInLayout="false">
+					<s:layout>
+						<s:HorizontalLayout verticalAlign="middle" horizontalAlign="center"/>
+					</s:layout>
+					<VideoPods:RecivingPod id="video13" name="video13" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video14" name="video14" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video15" name="video16" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video16" name="video16" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video17" name="video17" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video18" name="video19" width="212" height="150" includeInLayout="false" visible="false"/>
+				</s:Group>
+				<s:Group width="100%" height="25%" id="videoPodContainer4" name="videoPodContainer4" includeInLayout="false">
+					<s:layout>
+						<s:HorizontalLayout verticalAlign="middle" horizontalAlign="center"/>
+					</s:layout>
+					<VideoPods:RecivingPod id="video19" name="video19" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video20" name="video20" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video21" name="video21" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video22" name="video22" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video23" name="video23" width="212" height="150" includeInLayout="false" visible="false"/>
+					<VideoPods:RecivingPod id="video24" name="video24" width="212" height="150" includeInLayout="false" visible="false"/>
+				</s:Group>
+			</s:Group>
+		</s:BorderContainer>
+		<s:Button right="10" top="5" width="25" height="25" click="image1_clickHandler(event)" skinClass="spark.skins.spark.mediaClasses.fullScreen.FullScreenButtonSkin"
+				 />
+	</s:Group>
+</s:Group>
